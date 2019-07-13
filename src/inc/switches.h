@@ -192,6 +192,7 @@
 #if !defined(FEATURE_PAL)
 #define FEATURE_STACK_SAMPLING
 #endif // defined (ALLOW_SXS_JIT)
+#define FEATURE_INTERPRETER
 
 #endif // !defined(CROSSGEN_COMPILE)
 
