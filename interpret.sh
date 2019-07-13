@@ -6,3 +6,5 @@ export TraceInterpreterEntries=true
 export TraceInterpreterIL=ture
 export TraceInterpreterVerbose=true
 export TraceInterpreterJITTransition=true
+./dotnet.sh $@
+exit $?
