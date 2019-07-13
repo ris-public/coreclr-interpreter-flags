@@ -1,3 +1,6 @@
+The .NET IL Interpreter: https://mattwarren.org/2017/03/30/The-.NET-IL-Interpreter
+This repo has CoreCLR with the post's instructions on how to enable the CIL interpreter.
+
 .NET Core Common Language Runtime (CoreCLR)
 ===========================
 
