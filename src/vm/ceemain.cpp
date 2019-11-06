@@ -510,11 +510,23 @@ void InitGSCookie()
 
     GSCookie * pGSCookiePtr = GetProcessGSCookiePtr();
 
+#ifdef FEATURE_PAL
+    // On Unix, the GS cookie is stored in a read only data segment
+    DWORD newProtection = PAGE_READWRITE;
+#else // FEATURE_PAL
+    DWORD newProtection = PAGE_EXECUTE_READWRITE;
+#endif // !FEATURE_PAL
+
     DWORD oldProtection;
-    if(!ClrVirtualProtect((LPVOID)pGSCookiePtr, sizeof(GSCookie), PAGE_EXECUTE_READWRITE, &oldProtection))
+    if(!ClrVirtualProtect((LPVOID)pGSCookiePtr, sizeof(GSCookie), newProtection, &oldProtection))
     {
         ThrowLastError();
     }
+
+#ifdef FEATURE_PAL
+    // PAL layer is unable to extract old protection for regions that were not allocated using VirtualAlloc
+    oldProtection = PAGE_READONLY;
+#endif // FEATURE_PAL
 
 #ifndef FEATURE_PAL
     // The GSCookie cannot be in a writeable page
@@ -596,6 +608,31 @@ do { \
 #define IfFailGoLog(EXPR) IfFailGotoLog(EXPR, ErrExit)
 #endif
 
+
+#ifndef CROSSGEN_COMPILE
+#ifdef FEATURE_PAL
+void EESocketCleanupHelper()
+{
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+        MODE_ANY;
+    } CONTRACTL_END;
+
+    // Close the debugger transport socket first
+    if (g_pDebugInterface != NULL)
+    {
+        g_pDebugInterface->CleanupTransportSocket();
+    }
+
+    // Close the diagnostic server socket.
+#ifdef FEATURE_PERFTRACING
+    DiagnosticServer::Shutdown();
+#endif // FEATURE_PERFTRACING
+}
+#endif // FEATURE_PAL
+#endif // CROSSGEN_COMPILE
+
 void EEStartupHelper(COINITIEE fFlags)
 {
     CONTRACTL
@@ -653,7 +690,12 @@ void EEStartupHelper(COINITIEE fFlags)
 #ifdef FEATURE_PERFTRACING
         // Initialize the event pipe.
         EventPipe::Initialize();
+
 #endif // FEATURE_PERFTRACING
+
+#ifdef FEATURE_PAL
+        PAL_SetShutdownCallback(EESocketCleanupHelper);
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_GDBJIT
         // Initialize gdbjit
@@ -1281,6 +1323,10 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 
     if (fIsDllUnloading)
     {
+        // The process is detaching, so set the global state.
+        // This is used to get around FreeLibrary problems.
+        g_fProcessDetach = true;
+
         ETW::EnumerationLog::ProcessShutdown();
     }
 
@@ -1296,11 +1342,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     // Get the current thread.
     Thread * pThisThread = GetThread();
 #endif
-
-    // If the process is detaching then set the global state.
-    // This is used to get around FreeLibrary problems.
-    if(fIsDllUnloading)
-        g_fProcessDetach = true;
 
     if (IsDbgHelperSpecialThread())
     {

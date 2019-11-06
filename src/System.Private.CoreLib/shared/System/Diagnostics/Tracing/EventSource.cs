@@ -479,10 +479,13 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Fires when a Command (e.g. Enable) comes from a an EventListener.  
         /// </summary>
-        public event EventHandler<EventCommandEventArgs> EventCommandExecuted
+        public event EventHandler<EventCommandEventArgs>? EventCommandExecuted
         {
             add
             {
+                if (value == null)
+                    return;
+
                 m_eventCommandExecuted += value;
 
                 // If we have an EventHandler<EventCommandEventArgs> attached to the EventSource before the first command arrives
@@ -2064,12 +2067,13 @@ namespace System.Diagnostics.Tracing
             {
                 Type pType = infos[i].ParameterType;
 
+                Type? argType = args[i]?.GetType();
+
                 // Checking to see if the Parameter types (from the Event method) match the supplied argument types.
-                // Fail if one of two things hold : either the argument type is not equal to the parameter type, or the 
-                // argument is null and the parameter type is non-nullable.
-                if ((args[i] != null && (args[i]!.GetType() != pType)) // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
-                    || (args[i] == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
-                    )
+                // Fail if one of two things hold : either the argument type is not equal or assignable to the parameter type, or the 
+                // argument is null and the parameter type is a non-Nullable<T> value type.
+                if ((args[i] != null && !pType.IsAssignableFrom(argType))
+                    || (args[i] == null && !((pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>)) || !pType.IsValueType)))
                 {
                     typesMatch = false;
                     break;
@@ -3953,7 +3957,7 @@ namespace System.Diagnostics.Tracing
         // Rather than depending on initialized statics, use lazy initialization to ensure that the statics are initialized exactly when they are needed.
 
         // used for generating GUID from eventsource name
-        private static byte[] namespaceBytes;
+        private static byte[]? namespaceBytes;
 
 #endregion
     }
@@ -4042,7 +4046,7 @@ namespace System.Diagnostics.Tracing
         /// In a multi-threaded environment, it is possible that 'EventSourceEventWrittenCallback' 
         /// events for a particular eventSource to occur BEFORE the EventSourceCreatedCallback is issued.
         /// </summary>
-        public event EventHandler<EventSourceCreatedEventArgs> EventSourceCreated
+        public event EventHandler<EventSourceCreatedEventArgs>? EventSourceCreated
         {
             add
             {
@@ -4060,7 +4064,7 @@ namespace System.Diagnostics.Tracing
         /// This event is raised whenever an event has been written by a EventSource for which 
         /// the EventListener has enabled events.  
         /// </summary>
-        public event EventHandler<EventWrittenEventArgs> EventWritten;
+        public event EventHandler<EventWrittenEventArgs>? EventWritten;
 
         static EventListener()
         {
@@ -4251,7 +4255,7 @@ namespace System.Diagnostics.Tracing
         /// <param name="eventData"></param>
         internal protected virtual void OnEventWritten(EventWrittenEventArgs eventData)
         {
-            EventHandler<EventWrittenEventArgs> callBack = this.EventWritten;
+            EventHandler<EventWrittenEventArgs>? callBack = this.EventWritten;
             if (callBack != null)
             {
                 callBack(this, eventData);
@@ -4479,11 +4483,11 @@ namespace System.Diagnostics.Tracing
             {
                 if (s_EventSources == null)
                     Interlocked.CompareExchange(ref s_EventSources, new List<WeakReference>(2), null);
-                return s_EventSources!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+                return s_EventSources;
             }
         }
 
-        private void CallBackForExistingEventSources(bool addToListenersList, EventHandler<EventSourceCreatedEventArgs> callback)
+        private void CallBackForExistingEventSources(bool addToListenersList, EventHandler<EventSourceCreatedEventArgs>? callback)
         {
             lock (EventListenersLock)
             {
@@ -4507,36 +4511,40 @@ namespace System.Diagnostics.Tracing
                         s_Listeners = this;
                     }
 
-                    // Find all existing eventSources call OnEventSourceCreated to 'catchup'
-                    // Note that we DO have reentrancy here because 'AddListener' calls out to user code (via OnEventSourceCreated callback) 
-                    // We tolerate this by iterating over a copy of the list here. New event sources will take care of adding listeners themselves
-                    // EventSources are not guaranteed to be added at the end of the s_EventSource list -- We re-use slots when a new source
-                    // is created.
-                    WeakReference[] eventSourcesSnapshot = s_EventSources.ToArray();
+                    if (callback != null)
+                    {
+                        // Find all existing eventSources call OnEventSourceCreated to 'catchup'
+                        // Note that we DO have reentrancy here because 'AddListener' calls out to user code (via OnEventSourceCreated callback) 
+                        // We tolerate this by iterating over a copy of the list here. New event sources will take care of adding listeners themselves
+                        // EventSources are not guaranteed to be added at the end of the s_EventSource list -- We re-use slots when a new source
+                        // is created.
+                        WeakReference[] eventSourcesSnapshot = s_EventSources.ToArray();
 
 #if DEBUG
-                    bool previousValue = s_ConnectingEventSourcesAndListener;
-                    s_ConnectingEventSourcesAndListener = true;
-                    try
-                    {
-#endif
-                        for (int i = 0; i < eventSourcesSnapshot.Length; i++)
+                        bool previousValue = s_ConnectingEventSourcesAndListener;
+                        s_ConnectingEventSourcesAndListener = true;
+                        try
                         {
-                            WeakReference eventSourceRef = eventSourcesSnapshot[i];
-                            if (eventSourceRef.Target is EventSource eventSource)
-                            {
-                                EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
-                                args.EventSource = eventSource;
-                                callback(this, args);
-                            }
-                        }
-#if DEBUG
-                    }
-                    finally
-                    {
-                        s_ConnectingEventSourcesAndListener = previousValue;
-                    }
 #endif
+                            for (int i = 0; i < eventSourcesSnapshot.Length; i++)
+                            {
+                                WeakReference eventSourceRef = eventSourcesSnapshot[i];
+                                if (eventSourceRef.Target is EventSource eventSource)
+                                {
+                                    EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
+                                    args.EventSource = eventSource;
+                                    callback(this, args);
+                                }
+                            }
+#if DEBUG
+                        }
+                        finally
+                        {
+                            s_ConnectingEventSourcesAndListener = previousValue;
+                        }
+#endif
+                    }
+
                     Validate();
                 }
                 finally

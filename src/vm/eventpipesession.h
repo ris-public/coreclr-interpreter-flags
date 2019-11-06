@@ -108,11 +108,12 @@ public:
         uint32_t numProviders,
         bool rundownEnabled = false);
     ~EventPipeSession();
+    void Close();
 
     uint64_t GetMask() const
     {
         LIMITED_METHOD_CONTRACT;
-        return (1ui64 << m_index);
+        return ((uint64_t)1 << m_index);
     }
 
     uint32_t GetIndex() const

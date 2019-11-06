@@ -122,14 +122,23 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                     genConsumeRegs(op1);
                     op1Reg = op1->gtRegNum;
 
-                    if ((category == HW_Category_SIMDScalar) && HWIntrinsicInfo::CopiesUpperBits(intrinsicId))
-                    {
-                        emit->emitIns_SIMD_R_R_R(ins, simdSize, targetReg, op1Reg, op1Reg);
-                    }
-                    else if ((ival != -1) && varTypeIsFloating(baseType))
+                    if ((ival != -1) && varTypeIsFloating(baseType))
                     {
                         assert((ival >= 0) && (ival <= 127));
-                        genHWIntrinsic_R_RM_I(node, ins, (int8_t)ival);
+                        if ((category == HW_Category_SIMDScalar) && HWIntrinsicInfo::CopiesUpperBits(intrinsicId))
+                        {
+                            assert(!op1->isContained());
+                            emit->emitIns_SIMD_R_R_R_I(ins, simdSize, targetReg, op1Reg, op1Reg,
+                                                       static_cast<int8_t>(ival));
+                        }
+                        else
+                        {
+                            genHWIntrinsic_R_RM_I(node, ins, static_cast<int8_t>(ival));
+                        }
+                    }
+                    else if ((category == HW_Category_SIMDScalar) && HWIntrinsicInfo::CopiesUpperBits(intrinsicId))
+                    {
+                        emit->emitIns_SIMD_R_R_R(ins, simdSize, targetReg, op1Reg, op1Reg);
                     }
                     else
                     {

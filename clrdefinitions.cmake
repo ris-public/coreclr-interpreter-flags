@@ -2,7 +2,7 @@ include(clrfeatures.cmake)
 
 # If set, indicates that this is not an officially supported release
 # Keep in sync with IsPrerelease in dir.props
-set(PRERELEASE 1)
+set(PRERELEASE 0)
 
 # Features we're currently flighting, but don't intend to ship in officially supported releases
 if (PRERELEASE)
@@ -241,3 +241,7 @@ if(WIN32)
     add_definitions(-DFEATURE_DATABREAKPOINT)
   endif(CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_I386)
 endif(WIN32)
+
+if(CLR_CMAKE_PLATFORM_DARWIN)
+  add_definitions(-DFEATURE_WRITEBARRIER_COPY)
+endif(CLR_CMAKE_PLATFORM_DARWIN)
