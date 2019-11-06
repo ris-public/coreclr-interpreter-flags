@@ -163,7 +163,7 @@ void GCToOSInterface::Shutdown()
 // Get numeric id of the current thread if possible on the
 // current platform. It is indended for logging purposes only.
 // Return:
-//  Numeric id of the current thread or 0 if the 
+//  Numeric id of the current thread or 0 if the
 uint64_t GCToOSInterface::GetCurrentThreadIdForLogging()
 {
     LIMITED_METHOD_CONTRACT;
@@ -194,6 +194,8 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
     GroupProcNo srcGroupProcNo(srcProcNo);
     GroupProcNo dstGroupProcNo(dstProcNo);
 
+    PROCESSOR_NUMBER proc;
+
     if (CPUGroupInfo::CanEnableGCCPUGroups())
     {
         if (srcGroupProcNo.GetGroup() != dstGroupProcNo.GetGroup())
@@ -202,15 +204,7 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
             //group. DO NOT MOVE THREADS ACROSS CPU GROUPS
             return true;
         }
-    }
 
-#if !defined(FEATURE_CORESYSTEM)
-    SetThreadIdealProcessor(GetCurrentThread(), (DWORD)dstGroupProcNo.GetProcIndex());
-#else
-    PROCESSOR_NUMBER proc;
-
-    if (CPUGroupInfo::CanEnableGCCPUGroups())
-    {
         proc.Group = (WORD)dstGroupProcNo.GetGroup();
         proc.Number = (BYTE)dstGroupProcNo.GetProcIndex();
         proc.Reserved = 0;
@@ -225,7 +219,7 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
             success = !!SetThreadIdealProcessorEx(GetCurrentThread(), &proc, &proc);
         }
     }
-#endif // !FEATURE_CORESYSTEM
+
     return success;
 
 #else // !FEATURE_PAL
@@ -425,7 +419,7 @@ bool GCToOSInterface::VirtualDecommit(void* address, size_t size)
     return !!::ClrVirtualFree(address, size, MEM_DECOMMIT);
 }
 
-// Reset virtual memory range. Indicates that data in the memory range specified by address and size is no 
+// Reset virtual memory range. Indicates that data in the memory range specified by address and size is no
 // longer of interest, but it should not be decommitted.
 // Parameters:
 //  address - starting virtual address
@@ -456,7 +450,7 @@ bool GCToOSInterface::SupportsWriteWatch()
 
     bool writeWatchSupported = false;
 
-    // check if the OS supports write-watch. 
+    // check if the OS supports write-watch.
     // Drawbridge does not support write-watch so we still need to do the runtime detection for them.
     // Otherwise, all currently supported OSes do support write-watch.
     void* mem = VirtualReserve(g_SystemInfo.dwAllocationGranularity, 0, VirtualReserveFlags::WriteWatch);
@@ -684,7 +678,7 @@ static size_t GetRestrictedPhysicalMemoryLimit()
             goto exit;
 
         JOBOBJECT_EXTENDED_LIMIT_INFORMATION limit_info;
-        if (GCQueryInformationJobObject (NULL, JobObjectExtendedLimitInformation, &limit_info, 
+        if (GCQueryInformationJobObject (NULL, JobObjectExtendedLimitInformation, &limit_info,
             sizeof(limit_info), NULL))
         {
             size_t job_memory_limit = (size_t)MAX_PTR;
@@ -693,13 +687,13 @@ static size_t GetRestrictedPhysicalMemoryLimit()
 
             // Notes on the NT job object:
             //
-            // You can specific a bigger process commit or working set limit than 
+            // You can specific a bigger process commit or working set limit than
             // job limit which is pointless so we use the smallest of all 3 as
             // to calculate our "physical memory load" or "available physical memory"
             // when running inside a job object, ie, we treat this as the amount of physical memory
             // our process is allowed to use.
-            // 
-            // The commit limit is already reflected by default when you run in a 
+            //
+            // The commit limit is already reflected by default when you run in a
             // job but the physical memory load is not.
             //
             if ((limit_info.BasicLimitInformation.LimitFlags & JOB_OBJECT_LIMIT_JOB_MEMORY) != 0)
@@ -783,7 +777,7 @@ static size_t GetRestrictedPhysicalMemoryLimit()
         return g_RestrictedPhysicalMemoryLimit;
 
     size_t memory_limit = PAL_GetRestrictedPhysicalMemoryLimit();
-    
+
     VolatileStore(&g_RestrictedPhysicalMemoryLimit, memory_limit);
     return g_RestrictedPhysicalMemoryLimit;
 }
@@ -794,7 +788,7 @@ static size_t GetRestrictedPhysicalMemoryLimit()
 // Return:
 //  non zero if it has succeeded, 0 if it has failed
 //
-// PERF TODO: Requires more work to not treat the restricted case to be special. 
+// PERF TODO: Requires more work to not treat the restricted case to be special.
 // To be removed before 3.0 ships.
 uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
 {
@@ -806,7 +800,7 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
     size_t restricted_limit = GetRestrictedPhysicalMemoryLimit();
     if (restricted_limit != 0)
     {
-        if (is_restricted 
+        if (is_restricted
 #ifndef FEATURE_PAL
             && !g_UseRestrictedVirtualMemory
 #endif
@@ -861,7 +855,7 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
                     *available_physical = restricted_limit - workingSetSize;
             }
             // Available page file doesn't mean much when physical memory is restricted since
-            // we don't know how much of it is available to this process so we are not going to 
+            // we don't know how much of it is available to this process so we are not going to
             // bother to make another OS call for it.
             if (available_page_file)
                 *available_page_file = 0;
@@ -872,7 +866,7 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
 
     MEMORYSTATUSEX ms;
     ::GetProcessMemoryLoad(&ms);
-    
+
 #ifndef FEATURE_PAL
     if (g_UseRestrictedVirtualMemory)
     {
@@ -912,7 +906,7 @@ int64_t GCToOSInterface::QueryPerformanceCounter()
     {
         DebugBreak();
         _ASSERTE(!"Fatal Error - cannot query performance counter.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);        // TODO: fatal error        
+        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);        // TODO: fatal error
     }
 
     return ts.QuadPart;
@@ -930,7 +924,7 @@ int64_t GCToOSInterface::QueryPerformanceFrequency()
     {
         DebugBreak();
         _ASSERTE(!"Fatal Error - cannot query performance counter.");
-        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);        // TODO: fatal error        
+        EEPOLICY_HANDLE_FATAL_ERROR(COR_E_EXECUTIONENGINE);        // TODO: fatal error
     }
 
     return frequency.QuadPart;

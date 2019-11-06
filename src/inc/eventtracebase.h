@@ -46,6 +46,16 @@ enum EtwTypeFlags
     kEtwTypeFlagsFinalizable =                      0x2,
     kEtwTypeFlagsExternallyImplementedCOMObject =   0x4,
     kEtwTypeFlagsArray =                            0x8,
+    kEtwTypeFlagsArrayRankBit0 =                  0x100,
+    kEtwTypeFlagsArrayRankBit1 =                  0x200,
+    kEtwTypeFlagsArrayRankBit2 =                  0x400,
+    kEtwTypeFlagsArrayRankBit3 =                  0x800,
+    kEtwTypeFlagsArrayRankBit4 =                 0x1000,
+    kEtwTypeFlagsArrayRankBit5 =                 0x2000,
+
+    kEtwTypeFlagsArrayRankMask =                 0x3F00,
+    kEtwTypeFlagsArrayRankShift =                     8,
+    kEtwTypeFlagsArrayRankMax = kEtwTypeFlagsArrayRankMask >> kEtwTypeFlagsArrayRankShift
 };
 
 enum EtwThreadFlags
@@ -72,7 +82,7 @@ enum EtwThreadFlags
 //
 
 #define ETW_TRACING_INITIALIZED(RegHandle) \
-    ((g_pEtwTracer && RegHandle) || EVENT_PIPE_ENABLED())
+    ((g_pEtwTracer && (RegHandle)) || EVENT_PIPE_ENABLED())
 
 //
 // Use this macro to check if an event is enabled
@@ -558,7 +568,7 @@ extern "C" {
 // User defined callback
 //
 #define MCGEN_PRIVATE_ENABLE_CALLBACK(RequestCode, Context, InOutBufferSize, Buffer) \
-        EtwCallback(NULL /* SourceId */, (RequestCode==WMI_ENABLE_EVENTS) ? EVENT_CONTROL_CODE_ENABLE_PROVIDER : EVENT_CONTROL_CODE_DISABLE_PROVIDER, 0 /* Level */, 0 /* MatchAnyKeyword */, 0 /* MatchAllKeyword */, NULL /* FilterData */, Context)
+        EtwCallback(NULL /* SourceId */, ((RequestCode)==WMI_ENABLE_EVENTS) ? EVENT_CONTROL_CODE_ENABLE_PROVIDER : EVENT_CONTROL_CODE_DISABLE_PROVIDER, 0 /* Level */, 0 /* MatchAnyKeyword */, 0 /* MatchAllKeyword */, NULL /* FilterData */, Context)
 
 //
 // User defined callback2
@@ -846,6 +856,7 @@ namespace ETW
         static VOID SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWORD dwEventOptions, PCODE pNativeCodeStartAddress, ReJITID ilCodeId);
         static VOID SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName=NULL, SString *methodName=NULL, SString *methodSignature=NULL, PCODE pNativeCodeStartAddress = 0, PrepareCodeConfig *pConfig = NULL);
         static VOID SendHelperEvent(ULONGLONG ullHelperStartAddress, ULONG ulHelperSize, LPCWSTR pHelperName);
+        static VOID SendMethodDetailsEvent(MethodDesc *pMethodDesc);
     public:
         typedef union _MethodStructs
         {
@@ -1240,6 +1251,11 @@ namespace ETW
 // The ONE and only ONE global instantiation of this class
 //
 extern ETW::CEtwTracer *  g_pEtwTracer;
+
+EXTERN_C DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context;
+EXTERN_C DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context;
+EXTERN_C DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context;
+EXTERN_C DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_DOTNET_Context;
 
 //
 // Special Handling of Startup events

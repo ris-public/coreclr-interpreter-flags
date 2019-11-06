@@ -1,10 +1,5 @@
 <linker>
   <assembly fullname="System.Private.CoreLib">
-    <type fullname="System.CommonlyUsedGenericInstantiations">
-      <!-- Method is purely an aid for NGen to statically deduce which
-           instantiations to save in the ngen image. -->
-      <method name="CommonlyUsedWinRTRedirectedInterfaceStubs" />
-    </type>
     <type fullname="System.GC">
       <!-- Methods are used to register and unregister frozen segments. They are private and experimental. -->
       <method name="_RegisterFrozenSegment" />
@@ -23,10 +18,10 @@
       <method name="GetQueuedWorkItemsForDebugger" />
       <method name="GetGloballyQueuedWorkItemsForDebugger" />
       <method name="GetLocallyQueuedWorkItemsForDebugger" />
-    </type> 
+    </type>
     <type fullname="System.Threading.Tasks.TaskScheduler">
       <method name="GetScheduledTasksForDebugger" />
-      <method name="GetTaskSchedulersForDebugger" /> 
+      <method name="GetTaskSchedulersForDebugger" />
     </type>
     <type fullname="System.Runtime.CompilerServices.AsyncMethodBuilderCore">
       <method name="TryGetStateMachineForDebugger" />
@@ -72,5 +67,11 @@
     <!-- Workaround for https://github.com/mono/linker/issues/378 -->
     <type fullname="System.Runtime.InteropServices.IDispatch" />
     <type fullname="Internal.Runtime.InteropServices.IClassFactory2" />
+    <type fullname="System.Threading.ThreadPoolBoundHandle">
+        <!-- Workaround to keep .interfaceimpl even though this type
+             is not instantiated on unix:
+             https://github.com/mono/linker/pull/649 -->
+      <method name=".ctor" />
+    </type>
   </assembly>
 </linker>
